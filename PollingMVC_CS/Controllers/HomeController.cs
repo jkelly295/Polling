@@ -16,17 +16,24 @@ namespace PollingMVC_CS.Controllers
 
         public ActionResult DoInitAssemble(string PLP_ID, string UserID)
         {
+            //Starts the assembly process.
             return Json(Poll.InitAssemble(PLP_ID, UserID));
         }
 
         public ActionResult DoPoll(string PLP_ID)
         {
+            //Polls the db, and returns the progress of the process
+
             Poll p = new Poll(PLP_ID);
             return Json(p);
         }
 
         public ActionResult DoKillAssembly(string PLP_ID)
         {
+            //We added this in case the long running process gets stopped / error's out / etc
+            //We show this button only to certain "admins", so just anyone can't kill a process
+            //started by someone else.
+
             string retval = "";
             try
             {
@@ -43,6 +50,12 @@ namespace PollingMVC_CS.Controllers
 
         public ActionResult DoLongRunningStuff(string PLP_ID)
         {
+            //This is where you would do some long running task in steps preferably.
+            //Just make sure after each "step" or piece of the process, use the UpdatePercentComplete
+            //Method to update the user on the progress.
+            //At the end of the process, we call MarkAssemblyComplete() to stop the polling.
+            //This would likely be a separate view / web API / process / etc
+
             string RetVal = "";
 
             for(int i = 0; i < 10; i++)

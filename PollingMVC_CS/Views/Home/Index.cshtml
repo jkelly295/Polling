@@ -75,7 +75,7 @@
         function InitPriceList(PLP_ID, UserID) {
             /******************************************************************
              *Sets the database entries in PLP_Assemble, so we can begin a new
-             *assembly of the price list.
+             *assembly process.
              ******************************************************************/
             $.ajax({
                 url: "/Home/DoInitAssemble",
@@ -173,7 +173,7 @@
 
                     }, dataType: "json"
                 });
-            }, 1500);
+            }, 1500);  //NOTE: Change this value to increase / decrease the rate of polling.
         }
 
 
