@@ -1,0 +1,185 @@
+﻿
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Index</title>
+    <link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+    <style type="text/css">
+        .plp_status {font-weight:bold;font-size:12pt;}
+    </style>
+</head>
+<body>
+    <div> 
+         <input type="hidden" value="123" id="hPLP_ID" />
+        <div class="col-lg-8 col-lg-offset-2">
+
+            <div class="form-group">
+                <label for="UserID">Assembler</label>
+                <input type="text" class="form-control" id="UserID" value="TEST"/>
+            </div>
+
+            <div class="form-group">
+                <label for="PLP_ID">Process ID</label>
+                <input type="text" class="form-control" id="PLP_ID" value="123"/>
+            </div>
+
+            <div>
+                <button id="buildLink" class="btn btn-primary">Assemble </button>
+                <button id="killLink" class="btn btn-danger">Kill Current Assembly Process</button>
+            </div>
+            
+            <div id="progressDiv" style="padding-top:20px;"></div>
+            <div class="progress" style="width:500px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div id="statusDiv" style="padding-top:20px;"></div>
+
+        </div>
+    </div>
+
+
+    <script src="~/Scripts/jquery-3.0.0.min.js"></script>
+    <script src="~/Scripts/bootstrap.min.js"></script>
+
+       <script type="text/javascript">
+
+
+        $(document).ready(function () {
+            $('#buildLink').bind('click', function () {
+                var PLP_ID = $("#PLP_ID").val();
+                var UserID = $("#UserID").val();
+                InitPriceList(PLP_ID,UserID);
+            });
+
+            $("#killLink").bind('click', function () {
+                if (confirm("Are You Sure?")) {
+                    var PLP_ID = $("#PLP_ID").val();
+                    KillAssembly(PLP_ID);
+                }
+               
+            });
+
+           //First Time in, let's poll to see if an assembly is underway.
+            poll();
+        });
+
+        // main functions
+
+
+        function InitPriceList(PLP_ID, UserID) {
+            /******************************************************************
+             *Sets the database entries in PLP_Assemble, so we can begin a new
+             *assembly of the price list.
+             ******************************************************************/
+            $.ajax({
+                url: "/Home/DoInitAssemble",
+                data: JSON.stringify({ PLP_ID: PLP_ID, UserID: UserID }),
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                }, dataType: "json"
+            }).done(function (data) {
+                //Only when the above has completed (remember it's asyncronous)
+
+                //Clear the progress bar.
+                $('#progressBar').css('width', 0 + '%').attr('aria-valuenow', 0); 
+                $('#buildLink').attr('disabled', 'disabled');
+                
+                var PLP_ID = $("#PLP_ID").val();
+                var UserID = $("#UserID").val();
+                //Call the webmethod that actually begins the assembly.
+                if (data == 'SUCCESS') {
+                    AssemblePriceList(PLP_ID, UserID);
+                }
+                
+
+                //Begin polling, so we can report back to the user the progress of the assembly.
+                poll();
+                });
+        }
+
+     
+        function AssemblePriceList(PLP_ID, UserID) {
+            $.ajax({
+                url: "/Home/DoLongRunningStuff",
+                data: JSON.stringify({ PLP_ID: PLP_ID }),
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    console.log("finished asembling");
+                    $("#progressDiv").html("Finished Assembling");
+                    $('#buildLink').removeAttr('disabled');
+                }, dataType: "json"
+            });
+        }
+    
+
+
+
+        function KillAssembly(PLP_ID) {
+            $.ajax({
+                url: "/Home/DoKillAssembly",
+                data: JSON.stringify({ PLP_ID: PLP_ID }),
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                success: function (data) {
+                    poll();
+
+                }, dataType: "json"
+            });
+        }
+
+        function poll() {
+            setTimeout(function () {
+                var PLP_ID = $("#PLP_ID").val();
+                $.ajax({
+                    url: "/Home/DoPoll",
+                    data: JSON.stringify({ PLP_ID: PLP_ID }),
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        //Update element
+                        $("#progressDiv").html(data.Percent_Complete + '% Complete');
+                        $("#progressBar").attr("aria-valuenow", data.Percent_Complete)
+                        $('#progressBar').css('width', data.Percent_Complete + '%').attr('aria-valuenow', data.Percent_Complete);
+
+                        var status = "";
+                        status += "<div class='plp_status'>Status: Assembly " + data.Status + "</div>";
+                        status += "<div>Assemble Started: " + data.Assemble_Started; + "</div>";
+                        if (data.Assemble_Ended != '') {
+                            status += "<div>Assemble Ended: " + data.Assemble_Ended; + "</div>";
+                        }
+                        status += "<div>Assembled By: " + data.Assembler + "</div>";
+                        status += "<div>Last Step: " + data.LastStepNote + "</div>";
+                        
+
+                        $('#statusDiv').html(status);
+
+                        //Setup the next poll recursively
+                        if (data.Status == 'IN_PROGRESS') {
+                            $('#buildLink').attr('disabled', 'disabled');
+                            $('#killLink').removeAttr('disabled');
+                            poll();
+                        } else {
+                            $('#buildLink').removeAttr('disabled');
+                            $('#killLink').attr('disabled', 'disabled');
+                        }
+
+                    }, dataType: "json"
+                });
+            }, 1500);
+        }
+
+
+
+    
+    </script>
+</body>
+
+</html>
